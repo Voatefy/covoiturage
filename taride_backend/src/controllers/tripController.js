@@ -99,4 +99,50 @@ const getTripById = async (req, res) => {
   }
 };
 
-module.exports = { searchTrips, getTripById };
+// ── GET /api/trips/locations/departures ─────────────────────────────────────
+// Retourne tous les points de départ distincts des trajets actifs
+const getDepartures = async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT DISTINCT departure
+       FROM trips
+       WHERE status = 'active'
+         AND departure_datetime > NOW()
+         AND available_seats > 0
+       ORDER BY departure ASC`
+    );
+    return res.status(200).json(result.rows.map((r) => r.departure));
+  } catch (err) {
+    console.error('Erreur getDepartures :', err.message);
+    return res.status(500).json({ message: 'Erreur serveur' });
+  }
+};
+
+// ── GET /api/trips/locations/destinations ───────────────────────────────────
+// Retourne les destinations disponibles depuis un départ donné
+const getDestinations = async (req, res) => {
+  const { departure } = req.query;
+
+  if (!departure) {
+    return res.status(400).json({ message: 'departure requis' });
+  }
+
+  try {
+    const result = await pool.query(
+      `SELECT DISTINCT destination
+       FROM trips
+       WHERE status = 'active'
+         AND departure_datetime > NOW()
+         AND available_seats > 0
+         AND departure ILIKE $1
+       ORDER BY destination ASC`,
+      [departure]
+    );
+    return res.status(200).json(result.rows.map((r) => r.destination));
+  } catch (err) {
+    console.error('Erreur getDestinations :', err.message);
+    return res.status(500).json({ message: 'Erreur serveur' });
+  }
+};
+
+module.exports = { searchTrips, getTripById, getDepartures, getDestinations };
